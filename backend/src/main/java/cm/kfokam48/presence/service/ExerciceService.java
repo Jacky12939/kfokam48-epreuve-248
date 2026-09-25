@@ -14,7 +14,9 @@ import cm.kfokam48.presence.repository.RelectureRepository;
 import cm.kfokam48.presence.repository.SessionRepository;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,45 +37,54 @@ public class ExerciceService {
 
     @Transactional
     public ExerciceResponse deposer(ExerciceRequest request) {
-        if (!estLienValide(request.lien())) {
-            throw new LienInvalideException();
-        }
+        if (!estLienValide(request.lien())) throw new LienInvalideException();
         sessionRepository.findById(request.sessionId())
             .orElseThrow(() -> new SessionInconnueException(request.sessionId()));
         exerciceRepository.findBySessionIdAndEtudiantId(request.sessionId(), request.etudiantId())
             .ifPresent(e -> { throw new ExerciceDejaDeposeException(); });
 
         Exercice exercice = new Exercice(
-            request.sessionId(),
-            request.etudiantId(),
-            request.lien(),
-            "DEPOSE"
-        );
+            request.sessionId(), request.etudiantId(), request.lien(), "DEPOSE");
         Exercice saved = exerciceRepository.save(exercice);
         return new ExerciceResponse(saved.getId(), saved.getStatut());
     }
 
+    /**
+     * v2 (issue #22) : note = moyenne des notes rendues, provisoire si < 2 rendues.
+     */
     @Transactional(readOnly = true)
     public ExerciceDetailResponse consulter(Long exerciceId) {
         Exercice exercice = exerciceRepository.findById(exerciceId)
             .orElseThrow(() -> new ExerciceInconnuException(exerciceId));
 
-        Optional<Relecture> relectureOpt = relectureRepository.findByExerciceId(exerciceId);
+        List<Relecture> relectures = relectureRepository.findByExerciceId(exerciceId);
+        List<Relecture> rendues = relectures.stream()
+            .filter(r -> r.getRenduAt() != null && r.getNote() != null)
+            .collect(Collectors.toList());
 
-        Integer note = null;
+        Double note = null;
         String commentaire = null;
-        java.time.LocalDateTime renduAt = null;
+        LocalDateTime renduAt = null;
+        boolean noteProvisoire = false;
 
-        if (relectureOpt.isPresent()) {
-            Relecture r = relectureOpt.get();
-            if (r.getRenduAt() != null) {
-                note = r.getNote();
-                commentaire = r.getCommentaire();
-                renduAt = r.getRenduAt();
-            }
+        if (!rendues.isEmpty()) {
+            double moyenne = rendues.stream()
+                .mapToInt(Relecture::getNote)
+                .average()
+                .orElse(0.0);
+            note = Math.round(moyenne * 100.0) / 100.0;
+
+            // Provisoire si au moins un relecteur assigné n'a pas encore rendu.
+            noteProvisoire = rendues.size() < relectures.size();
+
+            // On expose le commentaire du dernier rendu (le plus récent).
+            Relecture dernier = rendues.stream()
+                .max((a, b) -> a.getRenduAt().compareTo(b.getRenduAt()))
+                .orElse(rendues.get(0));
+            commentaire = dernier.getCommentaire();
+            renduAt = dernier.getRenduAt();
         }
 
-        // Q8 : on ne renvoie PAS relecteurId
         return new ExerciceDetailResponse(
             exercice.getId(),
             exercice.getSessionId(),
@@ -81,6 +92,7 @@ public class ExerciceService {
             exercice.getLien(),
             exercice.getStatut(),
             note,
+            noteProvisoire,
             commentaire,
             renduAt
         );

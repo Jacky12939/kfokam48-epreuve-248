@@ -21,6 +21,8 @@ import cm.kfokam48.presence.repository.RelectureRepository;
 import cm.kfokam48.presence.repository.SessionRepository;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RelectureService {
+
+    private static final int NB_RELECTEURS = 2;
 
     private final RelectureRepository relectureRepository;
     private final ExerciceRepository exerciceRepository;
@@ -45,34 +49,45 @@ public class RelectureService {
         this.sessionRepository = sessionRepository;
     }
 
+    /**
+     * v2 (issue #22) : assigne DEUX relecteurs distincts parmi les présents, ≠ déposant.
+     * Si moins de 3 présents (déposant inclus), un seul relecteur est assigné (RG3 + RG7).
+     */
     @Transactional
     public AssignationResponse assigner(AssignationRequest request) {
         Exercice exercice = exerciceRepository.findById(request.exerciceId())
             .orElseThrow(() -> new ExerciceInconnuException(request.exerciceId()));
 
-        relectureRepository.findByExerciceId(exercice.getId())
-            .ifPresent(r -> { throw new RelectureDejaAssigneeException(); });
+        if (relectureRepository.countByExerciceId(exercice.getId()) > 0) {
+            throw new RelectureDejaAssigneeException();
+        }
 
         List<Presence> presences = presenceRepository.findBySessionId(exercice.getSessionId());
         List<Long> candidats = presences.stream()
             .map(Presence::getEtudiantId)
             .filter(id -> !id.equals(exercice.getEtudiantId()))
             .distinct()
-            .collect(Collectors.toList());
+            .collect(Collectors.toCollection(ArrayList::new));
 
         if (candidats.isEmpty()) {
             throw new AucunRelecteurDisponibleException();
         }
 
-        Long relecteurId = candidats.get(random.nextInt(candidats.size()));
-        Relecture relecture = new Relecture(exercice.getId(), relecteurId);
-        Relecture saved = relectureRepository.save(relecture);
-        return new AssignationResponse(saved.getId(), saved.getExerciceId(), saved.getRelecteurId());
+        Collections.shuffle(candidats, random);
+        int nbAAssignee = Math.min(NB_RELECTEURS, candidats.size());
+        List<Long> selection = candidats.subList(0, nbAAssignee);
+
+        List<Long> relecteurIds = new ArrayList<>();
+        for (Long relecteurId : selection) {
+            Relecture r = relectureRepository.save(new Relecture(exercice.getId(), relecteurId));
+            relecteurIds.add(r.getRelecteurId());
+        }
+
+        return new AssignationResponse(exercice.getId(), relecteurIds);
     }
 
     @Transactional
     public RelectureResponse rendre(Long relectureId, RelectureRequest request) {
-        // RG5 : note entière 0-20 (double vérification car la validation pourrait être contournée)
         if (request.note() == null || request.note() < 0 || request.note() > 20) {
             throw new NoteInvalideException();
         }
@@ -83,12 +98,10 @@ public class RelectureService {
         Exercice exercice = exerciceRepository.findById(relecture.getExerciceId())
             .orElseThrow(() -> new ExerciceInconnuException(relecture.getExerciceId()));
 
-        // RG3 : pas d'auto-relecture
         if (relecture.getRelecteurId().equals(exercice.getEtudiantId())) {
             throw new AutoRelectureException();
         }
 
-        // RG12 : corrigeable tant que la session n'est pas clôturée
         Session session = sessionRepository.findById(exercice.getSessionId())
             .orElseThrow(() -> new ExerciceInconnuException(exercice.getId()));
         if (session.getClotureAt() != null) {
