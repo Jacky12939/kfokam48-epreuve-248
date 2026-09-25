@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: API — Plateforme de présence et relecture KFOKAM48
+  version: 1.0.0
+  description: Contrat d'API imposé + opérations complémentaires.
+
+paths:
+  /api/sessions:
+    post:
+      summary: Ouvrir une session et générer un code de présence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titre, promotionId]
+              properties:
+                titre: { type: string }
+                promotionId: { type: integer, format: int64 }
+      responses:
+        '201':
+          description: Session créée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  code: { type: string }
+                  ouvertureAt: { type: string, format: date-time }
+                  expirationAt: { type: string, format: date-time }
+        '400': { description: Champ manquant }
+
+  /api/presences:
+    post:
+      summary: Marquer une présence avec un code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, etudiantId]
+              properties:
+                code: { type: string }
+                etudiantId: { type: integer, format: int64 }
+                source: { type: string, enum: [ETUDIANT, FORMATEUR], default: ETUDIANT }
+      responses:
+        '201':
+          description: Présence créée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  sessionId: { type: integer, format: int64 }
+                  etudiantId: { type: integer, format: int64 }
+                  source: { type: string, enum: [ETUDIANT, FORMATEUR] }
+        '400': { description: Code inconnu }
+        '409': { description: Déjà présent }
+        '410': { description: Code expiré }
+
+  /api/exercices:
+    post:
+      summary: Déposer le lien d'un exercice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, etudiantId, lien]
+              properties:
+                sessionId: { type: integer, format: int64 }
+                etudiantId: { type: integer, format: int64 }
+                lien: { type: string, format: uri }
+      responses:
+        '201':
+          description: Exercice déposé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  statut: { type: string, enum: [DEPOSE, EN_ATTENTE, RELU] }
+        '400': { description: Lien invalide }
+        '409': { description: Exercice déjà déposé pour cette session }
+
+  /api/relectures/{id}:
+    post:
+      summary: Rendre une relecture (note + commentaire)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note, commentaire]
+              properties:
+                note: { type: integer, minimum: 0, maximum: 20 }
+                commentaire: { type: string }
+      responses:
+        '200':
+          description: Relecture enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  note: { type: integer }
+                  commentaire: { type: string }
+                  renduAt: { type: string, format: date-time }
+        '400': { description: Note hors 0-20 ou non entière }
+        '403': { description: Relecture de son propre exercice }
+        '409': { description: Relecture déjà rendue ou session clôturée }
+
+  /api/tableau:
+    get:
+      summary: Tableau de bord formateur pour une promotion
+      parameters:
+        - in: query
+          name: promotionId
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Tableau agrégé
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    etudiantId: { type: integer, format: int64 }
+                    nom: { type: string }
+                    presences: { type: integer }
+                    exercicesDeposes: { type: integer }
+                    moyenne: { type: number, nullable: true }
+                    relecturesEnAttente: { type: integer }
+        '404': { description: Promotion inconnue }
+
+  /api/relectures/assigner:
+    post:
+      summary: Assigner un relecteur à un exercice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exerciceId]
+              properties:
+                exerciceId: { type: integer, format: int64 }
+      responses:
+        '201': { description: Relecture assignée }
+        '403': { description: Auto-relecture interdite }
+        '409': { description: Relecteur déjà assigné }
+
+  /api/exercices/{id}:
+    get:
+      summary: Voir un exercice (note + commentaire, sans nom du relecteur)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: Détail exercice }
+        '404': { description: Exercice inconnu }
+
+components:
+  schemas:
+    Erreur:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+      example:
+        code: CODE_EXPIRE
+        message: Le code de présence a expiré.
