@@ -23,6 +23,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("SESSION_INCONNUE", ex.getMessage());
     }
 
+    @ExceptionHandler(ExerciceInconnuException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleExerciceInconnu(ExerciceInconnuException ex) {
+        return new ErrorResponse("EXERCICE_INCONNU", ex.getMessage());
+    }
+
     @ExceptionHandler(CodeInconnuException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleCodeInconnu(CodeInconnuException ex) {
@@ -63,6 +69,18 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleExerciceDejaDepose(ExerciceDejaDeposeException ex) {
         return new ErrorResponse("EXERCICE_DEJA_DEPOSE", ex.getMessage());
+    }
+
+    @ExceptionHandler(RelectureDejaAssigneeException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleRelectureDejaAssignee(RelectureDejaAssigneeException ex) {
+        return new ErrorResponse("RELECTURE_DEJA_ASSIGNEE", ex.getMessage());
+    }
+
+    @ExceptionHandler(AucunRelecteurDisponibleException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleAucunRelecteur(AucunRelecteurDisponibleException ex) {
+        return new ErrorResponse("AUCUN_RELECTEUR_DISPONIBLE", ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
