@@ -6,7 +6,9 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RelectureRepository extends JpaRepository<Relecture, Long> {
-    Optional<Relecture> findByExerciceId(Long exerciceId);
+    Optional<Relecture> findByExerciceIdAndRelecteurId(Long exerciceId, Long relecteurId);
+    List<Relecture> findByExerciceId(Long exerciceId);
     List<Relecture> findByExerciceIdIn(List<Long> exerciceIds);
     long countByRelecteurIdAndRenduAtIsNull(Long relecteurId);
+    long countByExerciceId(Long exerciceId);
 }

@@ -1,6 +1,6 @@
-# D2 — Modèle de données
+# D2 — Modèle de données (v2 après enveloppe)
 
-Ce diagramme correspond aux migrations Flyway V1 et suivantes.
+Correspond aux migrations Flyway V1 + V2.
 
 ```mermaid
 erDiagram
@@ -10,7 +10,7 @@ erDiagram
   SESSION ||--o{ EXERCICE : recoit
   ETUDIANT ||--o{ PRESENCE : marque
   ETUDIANT ||--o{ EXERCICE : depose
-  EXERCICE ||--o| RELECTURE : fait_l_objet
+  EXERCICE ||--o{ RELECTURE : fait_l_objet
   ETUDIANT ||--o{ RELECTURE : effectue
 
   PROMOTION {
@@ -52,15 +52,19 @@ erDiagram
     text commentaire
     timestamp rendu_at
   }
-Contraintes
-presence(session_id, etudiant_id) : unique — RG2
 
-exercice(session_id, etudiant_id) : unique
+```
+## Contraintes (v2)
+presence(session_id, etudiant_id) : UNIQUE (RG2)
 
-relecture.exercice_id : unique — RG6
+exercice(session_id, etudiant_id) : UNIQUE
 
-note : entier entre 0 et 20 — RG5
+relecture(exercice_id, relecteur_id) : UNIQUE — au plus un rendu par relecteur et par exercice. exercice_id n'est PLUS unique seul (v2).
 
-source : ETUDIANT ou FORMATEUR — RG11
+relecture : jusqu'à 2 lignes par exercice (RG6 v2)
 
-statut : DEPOSE, EN_ATTENTE, RELU
+note : entier 0-20 (RG5)
+
+source : ETUDIANT | FORMATEUR (RG11)
+
+statut : DEPOSE | EN_ATTENTE | RELU

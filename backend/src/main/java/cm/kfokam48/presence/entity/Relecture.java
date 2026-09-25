@@ -6,13 +6,17 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "relecture")
+@Table(name = "relecture",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uq_relecture_exercice_relecteur",
+        columnNames = {"exercice_id", "relecteur_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,7 +26,8 @@ public class Relecture {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "exercice_id", nullable = false, unique = true)
+    // v2 : plus unique seul — jusqu'à 2 relectures par exercice.
+    @Column(name = "exercice_id", nullable = false)
     private Long exerciceId;
 
     @Column(name = "relecteur_id", nullable = false)
