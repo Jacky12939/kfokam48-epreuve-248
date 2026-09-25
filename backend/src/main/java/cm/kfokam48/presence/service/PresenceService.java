@@ -11,6 +11,7 @@ import cm.kfokam48.presence.exception.SessionInconnueException;
 import cm.kfokam48.presence.repository.PresenceRepository;
 import cm.kfokam48.presence.repository.SessionRepository;
 import java.time.LocalDateTime;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,14 +33,12 @@ public class PresenceService {
         Session session;
 
         if ("FORMATEUR".equals(source)) {
-            // RG11 : ajout manuel par le formateur — sessionId obligatoire, pas de code
             if (request.sessionId() == null) {
                 throw new CodeInconnuException("sessionId obligatoire pour un ajout FORMATEUR");
             }
             session = sessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new SessionInconnueException(request.sessionId()));
         } else {
-            // Cas étudiant : code obligatoire + vérification expiration (RG1)
             if (request.code() == null || request.code().isBlank()) {
                 throw new CodeInconnuException("Le code est obligatoire.");
             }
@@ -51,7 +50,7 @@ public class PresenceService {
             }
         }
 
-        // RG2 : unicité (session, étudiant)
+        // Pré-vérification (couvre le cas séquentiel)
         presenceRepository.findBySessionIdAndEtudiantId(session.getId(), request.etudiantId())
             .ifPresent(p -> { throw new DejaPresentException(); });
 
@@ -60,12 +59,18 @@ public class PresenceService {
         presence.setEtudiantId(request.etudiantId());
         presence.setSource(source);
 
-        Presence saved = presenceRepository.save(presence);
-        return new PresenceResponse(
-            saved.getId(),
-            saved.getSessionId(),
-            saved.getEtudiantId(),
-            saved.getSource()
-        );
+        try {
+            Presence saved = presenceRepository.saveAndFlush(presence);
+            return new PresenceResponse(
+                saved.getId(),
+                saved.getSessionId(),
+                saved.getEtudiantId(),
+                saved.getSource()
+            );
+        } catch (DataIntegrityViolationException ex) {
+            // Cas concurrent : la contrainte UNIQUE (session_id, etudiant_id) a rejeté l'INSERT.
+            // On traduit en 409 DEJA_PRESENT pour le client.
+            throw new DejaPresentException();
+        }
     }
 }
