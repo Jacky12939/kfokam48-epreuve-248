@@ -1,9 +1,12 @@
 package cm.kfokam48.presence.service;
 
+import cm.kfokam48.presence.dto.SessionClotureResponse;
 import cm.kfokam48.presence.dto.SessionRequest;
 import cm.kfokam48.presence.dto.SessionResponse;
 import cm.kfokam48.presence.entity.Session;
 import cm.kfokam48.presence.exception.PromotionInconnueException;
+import cm.kfokam48.presence.exception.SessionClotureeException;
+import cm.kfokam48.presence.exception.SessionInconnueException;
 import cm.kfokam48.presence.repository.PromotionRepository;
 import cm.kfokam48.presence.repository.SessionRepository;
 import java.security.SecureRandom;
@@ -47,6 +50,25 @@ public class SessionService {
             saved.getCode(),
             saved.getOuvertureAt(),
             saved.getExpirationAt()
+        );
+    }
+
+    @Transactional
+    public SessionClotureResponse cloturer(Long sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+            .orElseThrow(() -> new SessionInconnueException(sessionId));
+
+        if (session.getClotureAt() != null) {
+            throw new SessionClotureeException();
+        }
+
+        session.setClotureAt(LocalDateTime.now());
+        Session saved = sessionRepository.save(session);
+
+        return new SessionClotureResponse(
+            saved.getId(),
+            saved.getTitre(),
+            saved.getClotureAt()
         );
     }
 

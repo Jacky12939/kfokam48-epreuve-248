@@ -1,10 +1,12 @@
 package cm.kfokam48.presence.controller;
 
+import cm.kfokam48.presence.dto.SessionClotureResponse;
 import cm.kfokam48.presence.dto.SessionRequest;
 import cm.kfokam48.presence.dto.SessionResponse;
 import cm.kfokam48.presence.service.SessionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,5 +27,10 @@ public class SessionController {
     @ResponseStatus(HttpStatus.CREATED)
     public SessionResponse ouvrir(@Valid @RequestBody SessionRequest request) {
         return sessionService.ouvrir(request);
+    }
+
+    @PostMapping("/{id}/cloturer")
+    public SessionClotureResponse cloturer(@PathVariable Long id) {
+        return sessionService.cloturer(id);
     }
 }
