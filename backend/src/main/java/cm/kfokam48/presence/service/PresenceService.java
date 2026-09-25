@@ -7,6 +7,7 @@ import cm.kfokam48.presence.entity.Session;
 import cm.kfokam48.presence.exception.CodeExpireException;
 import cm.kfokam48.presence.exception.CodeInconnuException;
 import cm.kfokam48.presence.exception.DejaPresentException;
+import cm.kfokam48.presence.exception.SessionInconnueException;
 import cm.kfokam48.presence.repository.PresenceRepository;
 import cm.kfokam48.presence.repository.SessionRepository;
 import java.time.LocalDateTime;
@@ -27,26 +28,39 @@ public class PresenceService {
 
     @Transactional
     public PresenceResponse marquer(PresenceRequest request) {
-        // RG1 - code inconnu
-        Session session = sessionRepository.findByCode(request.code())
-            .orElseThrow(() -> new CodeInconnuException(request.code()));
+        String source = request.sourceEffective();
+        Session session;
 
-        // RG1 - code expiré (15 min après ouverture)
-        if (LocalDateTime.now().isAfter(session.getExpirationAt())) {
-            throw new CodeExpireException();
+        if ("FORMATEUR".equals(source)) {
+            // RG11 : ajout manuel par le formateur — sessionId obligatoire, pas de code
+            if (request.sessionId() == null) {
+                throw new CodeInconnuException("sessionId obligatoire pour un ajout FORMATEUR");
+            }
+            session = sessionRepository.findById(request.sessionId())
+                .orElseThrow(() -> new SessionInconnueException(request.sessionId()));
+        } else {
+            // Cas étudiant : code obligatoire + vérification expiration (RG1)
+            if (request.code() == null || request.code().isBlank()) {
+                throw new CodeInconnuException("Le code est obligatoire.");
+            }
+            session = sessionRepository.findByCode(request.code())
+                .orElseThrow(() -> new CodeInconnuException(request.code()));
+
+            if (LocalDateTime.now().isAfter(session.getExpirationAt())) {
+                throw new CodeExpireException();
+            }
         }
 
-        // RG2 - déjà présent
+        // RG2 : unicité (session, étudiant)
         presenceRepository.findBySessionIdAndEtudiantId(session.getId(), request.etudiantId())
             .ifPresent(p -> { throw new DejaPresentException(); });
 
         Presence presence = new Presence();
         presence.setSessionId(session.getId());
         presence.setEtudiantId(request.etudiantId());
-        presence.setSource("ETUDIANT");
+        presence.setSource(source);
 
         Presence saved = presenceRepository.save(presence);
-
         return new PresenceResponse(
             saved.getId(),
             saved.getSessionId(),
