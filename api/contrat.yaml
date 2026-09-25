@@ -1,8 +1,10 @@
 openapi: 3.0.3
 info:
   title: API — Plateforme de présence et relecture KFOKAM48
-  version: 1.0.0
-  description: Contrat d'API imposé + opérations complémentaires.
+  version: 2.0.0
+  description: |
+    Contrat d'API v2 (mise à jour suite enveloppe étape 3, issue #22).
+    Changement : 2 relecteurs par exercice, moyenne des notes, note provisoire.
 
 paths:
   /api/sessions:
@@ -32,18 +34,32 @@ paths:
                   expirationAt: { type: string, format: date-time }
         '400': { description: Champ manquant }
 
+  /api/sessions/{id}/cloturer:
+    post:
+      summary: Clôturer une session (formateur)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { description: Session clôturée }
+        '404': { description: Session inconnue }
+        '409': { description: Session déjà clôturée }
+
   /api/presences:
     post:
-      summary: Marquer une présence avec un code
+      summary: Marquer une présence (étudiant par code, ou formateur manuellement)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [code, etudiantId]
+              required: [etudiantId]
               properties:
-                code: { type: string }
+                code: { type: string, description: Obligatoire si source=ETUDIANT }
+                sessionId: { type: integer, format: int64, description: Obligatoire si source=FORMATEUR }
                 etudiantId: { type: integer, format: int64 }
                 source: { type: string, enum: [ETUDIANT, FORMATEUR], default: ETUDIANT }
       responses:
@@ -89,6 +105,67 @@ paths:
         '400': { description: Lien invalide }
         '409': { description: Exercice déjà déposé pour cette session }
 
+  /api/exercices/{id}:
+    get:
+      summary: Voir un exercice (note + commentaire, sans nom du relecteur)
+      description: |
+        v2 : la note renvoyée est la moyenne des relectures rendues.
+        Si un seul relecteur a rendu, la note est provisoire.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Détail exercice
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer, format: int64 }
+                  sessionId: { type: integer, format: int64 }
+                  etudiantId: { type: integer, format: int64 }
+                  lien: { type: string }
+                  statut: { type: string }
+                  note: { type: number, nullable: true, description: Moyenne des notes rendues }
+                  noteProvisoire: { type: boolean, description: true si au moins une relecture manque }
+                  commentaire: { type: string, nullable: true }
+                  renduAt: { type: string, format: date-time, nullable: true }
+        '404': { description: Exercice inconnu }
+
+  /api/relectures/assigner:
+    post:
+      summary: Assigner DEUX relecteurs à un exercice (v2)
+      description: |
+        v2 : 2 relecteurs distincts, aléatoires parmi les présents, ≠ déposant.
+        Si moins de 3 présents, un seul relecteur est assigné.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [exerciceId]
+              properties:
+                exerciceId: { type: integer, format: int64 }
+      responses:
+        '201':
+          description: Relectures assignées
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exerciceId: { type: integer, format: int64 }
+                  relecteurs:
+                    type: array
+                    items: { type: integer, format: int64 }
+        '403': { description: Auto-relecture interdite }
+        '404': { description: Exercice inconnu }
+        '409': { description: Relectures déjà assignées }
+
   /api/relectures/{id}:
     post:
       summary: Rendre une relecture (note + commentaire)
@@ -116,12 +193,13 @@ paths:
                 type: object
                 properties:
                   id: { type: integer, format: int64 }
+                  exerciceId: { type: integer, format: int64 }
                   note: { type: integer }
                   commentaire: { type: string }
                   renduAt: { type: string, format: date-time }
         '400': { description: Note hors 0-20 ou non entière }
         '403': { description: Relecture de son propre exercice }
-        '409': { description: Relecture déjà rendue ou session clôturée }
+        '409': { description: Session clôturée, note non modifiable }
 
   /api/tableau:
     get:
@@ -148,35 +226,6 @@ paths:
                     moyenne: { type: number, nullable: true }
                     relecturesEnAttente: { type: integer }
         '404': { description: Promotion inconnue }
-
-  /api/relectures/assigner:
-    post:
-      summary: Assigner un relecteur à un exercice
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [exerciceId]
-              properties:
-                exerciceId: { type: integer, format: int64 }
-      responses:
-        '201': { description: Relecture assignée }
-        '403': { description: Auto-relecture interdite }
-        '409': { description: Relecteur déjà assigné }
-
-  /api/exercices/{id}:
-    get:
-      summary: Voir un exercice (note + commentaire, sans nom du relecteur)
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer, format: int64 }
-      responses:
-        '200': { description: Détail exercice }
-        '404': { description: Exercice inconnu }
 
 components:
   schemas:
