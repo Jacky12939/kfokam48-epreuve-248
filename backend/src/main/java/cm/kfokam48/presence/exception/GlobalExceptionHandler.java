@@ -17,6 +17,36 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("PROMOTION_INCONNUE", ex.getMessage());
     }
 
+    @ExceptionHandler(CodeInconnuException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleCodeInconnu(CodeInconnuException ex) {
+        return new ErrorResponse("CODE_INCONNU", ex.getMessage());
+    }
+
+    @ExceptionHandler(CodeExpireException.class)
+    @ResponseStatus(HttpStatus.GONE)
+    public ErrorResponse handleCodeExpire(CodeExpireException ex) {
+        return new ErrorResponse("CODE_EXPIRE", ex.getMessage());
+    }
+
+    @ExceptionHandler(DejaPresentException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleDejaPresent(DejaPresentException ex) {
+        return new ErrorResponse("DEJA_PRESENT", ex.getMessage());
+    }
+
+    @ExceptionHandler(SessionCloseException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleSessionClose(SessionCloseException ex) {
+        return new ErrorResponse("SESSION_CLOTUREE", ex.getMessage());
+    }
+
+    @ExceptionHandler(TropDErreursException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ErrorResponse handleTropDErreurs(TropDErreursException ex) {
+        return new ErrorResponse("TROP_D_ERREURS", ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidation(MethodArgumentNotValidException ex) {
