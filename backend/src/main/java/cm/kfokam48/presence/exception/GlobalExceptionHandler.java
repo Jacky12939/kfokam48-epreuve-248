@@ -29,10 +29,22 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("EXERCICE_INCONNU", ex.getMessage());
     }
 
+    @ExceptionHandler(RelectureInconnueException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleRelectureInconnue(RelectureInconnueException ex) {
+        return new ErrorResponse("RELECTURE_INCONNUE", ex.getMessage());
+    }
+
     @ExceptionHandler(CodeInconnuException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleCodeInconnu(CodeInconnuException ex) {
         return new ErrorResponse("CODE_INCONNU", ex.getMessage());
+    }
+
+    @ExceptionHandler(NoteInvalideException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleNoteInvalide(NoteInvalideException ex) {
+        return new ErrorResponse("NOTE_INVALIDE", ex.getMessage());
     }
 
     @ExceptionHandler(CodeExpireException.class)
@@ -45,6 +57,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleDejaPresent(DejaPresentException ex) {
         return new ErrorResponse("DEJA_PRESENT", ex.getMessage());
+    }
+
+    @ExceptionHandler(SessionClotureeException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleSessionCloturee(SessionClotureeException ex) {
+        return new ErrorResponse("SESSION_CLOTUREE", ex.getMessage());
     }
 
     @ExceptionHandler(SessionCloseException.class)
@@ -81,6 +99,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleAucunRelecteur(AucunRelecteurDisponibleException ex) {
         return new ErrorResponse("AUCUN_RELECTEUR_DISPONIBLE", ex.getMessage());
+    }
+
+    @ExceptionHandler(AutoRelectureException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleAutoRelecture(AutoRelectureException ex) {
+        return new ErrorResponse("AUTO_RELECTURE_INTERDITE", ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
