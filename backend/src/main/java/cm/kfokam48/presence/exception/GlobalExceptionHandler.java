@@ -17,6 +17,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("PROMOTION_INCONNUE", ex.getMessage());
     }
 
+    @ExceptionHandler(SessionInconnueException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleSessionInconnue(SessionInconnueException ex) {
+        return new ErrorResponse("SESSION_INCONNUE", ex.getMessage());
+    }
+
     @ExceptionHandler(CodeInconnuException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleCodeInconnu(CodeInconnuException ex) {
@@ -45,6 +51,18 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
     public ErrorResponse handleTropDErreurs(TropDErreursException ex) {
         return new ErrorResponse("TROP_D_ERREURS", ex.getMessage());
+    }
+
+    @ExceptionHandler(LienInvalideException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleLienInvalide(LienInvalideException ex) {
+        return new ErrorResponse("LIEN_INVALIDE", ex.getMessage());
+    }
+
+    @ExceptionHandler(ExerciceDejaDeposeException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleExerciceDejaDepose(ExerciceDejaDeposeException ex) {
+        return new ErrorResponse("EXERCICE_DEJA_DEPOSE", ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
